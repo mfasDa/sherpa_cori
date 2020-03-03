@@ -6,16 +6,13 @@ import sys
 
 sourcedir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
-def create_jobscript(workdir, outputdir, runcard, nslotsall, nslotsmaster, minslot, nevents, qos, platform, usebb):
-    time = "1:00:00"
+def create_jobscript(workdir, outputdir, runcard, nslotsall, nslotsmaster, minslot, nevents, qos, platform, timelimit,  usebb):
     scratchsize = {"hasswell": 100, "knl" : 300}
-    if qos == "debug":
-        time = "0:30:00"
     jobscriptname = os.path.join(workdir, "jobscript.sh")
     with open(jobscriptname, "w") as scriptwriter:
         scriptwriter.write("#! /bin/bash\n")
         scriptwriter.write("#SBATCH --qos=%s\n" %qos)
-        scriptwriter.write("#SBATCH --time=%s\n" %time)
+        scriptwriter.write("#SBATCH --time=%s\n" %timelimit)
         scriptwriter.write("#SBATCH --nodes=1\n")
         scriptwriter.write("#SBATCH --constraint=%s\n" %platform)
         scriptwriter.write("#SBATCH --tasks-per-node=%s\n" %nslotsall)
@@ -61,7 +58,7 @@ def create_jobscript(workdir, outputdir, runcard, nslotsall, nslotsmaster, minsl
     return jobscriptname
 
 
-def main(outputdir, runcard, njobs, nevents, qos, platform, usebb):
+def main(outputdir, runcard, njobs, nevents, qos, platform, timelimit, usebb):
     nslots = {"haswell": 32, "knl" : 68}
     nmaster = int(int(njobs)/int(nslots[platform]))
     jobslast = int(njobs) % int(nslots[platform])
@@ -75,7 +72,7 @@ def main(outputdir, runcard, njobs, nevents, qos, platform, usebb):
         nslotsmaster = njobs - minslot
         if nslotsmaster > nslots[platform]:
             nslotsmaster = nslots[platform]
-        jobscript = create_jobscript(jobworkdir, outputdir, runcard, nslots[platform], nslotsmaster, minslot, nevents, qos, platform, usebb)
+        jobscript = create_jobscript(jobworkdir, outputdir, runcard, nslots[platform], nslotsmaster, minslot, nevents, qos, platform, timelimit, usebb)
         subprocess.call(["sbatch", jobscript])
         minslot += nslotsmaster
 
@@ -89,8 +86,9 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--platform", metavar="PLATFORM", type = str, default = "haswell", help = "Cori platform (knl or haswell, default: haswell)")
     parser.add_argument("-q", "--qos", type = str, default = "regular", help = "Queue (default: regular)")
     parser.add_argument("-b", "--burstbuffer", action = "store_true", help = "Use burst buffer")
+    parser.add_argument("-t", "--timelimit", type = str, default = "5:00:00", help = "Time limit")
     args = parser.parse_args()
     if not args.platform in platforms:
         print("Platform %s unsupported, select either \"haswell\" or \"knl\"" %platform)
         sys.exit(1)
-    main(args.outputdir, args.runcard, args.jobs, args.numberofevents, args.qos, args.platform, args.burstbuffer)
+    main(args.outputdir, args.runcard, args.jobs, args.numberofevents, args.qos, args.platform, args.timelimit, args.burstbuffer)
